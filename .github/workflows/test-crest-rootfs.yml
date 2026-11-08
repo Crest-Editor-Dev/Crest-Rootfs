@@ -1,0 +1,84 @@
+name: Test Crest Void RootFS
+
+on:
+  workflow_dispatch:
+    inputs:
+      rootfs_url:
+        description: "Custom RootFS URL to test (leave blank to test latest release)"
+        required: false
+        default: ""
+  workflow_run:
+    workflows: ["Build Crest Void RootFS"]
+    types:
+      - completed
+
+jobs:
+  test-aarch64:
+    name: Automated RootFS Validation (ARM64)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for ARM64
+        uses: docker/setup-qemu-action@v3
+
+      - name: Install extraction & binfmt tools
+        run: |
+          set -e
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y xz-utils binfmt-support
+
+      - name: Download RootFS to Test
+        run: |
+          set -e
+          CUSTOM_URL="${{ github.event.inputs.rootfs_url }}"
+
+          if [ -n "$CUSTOM_URL" ]; then
+            echo "Downloading custom rootfs from: $CUSTOM_URL"
+            curl -sSL "$CUSTOM_URL" -o void-aarch64-rootfs.tar.xz
+          else
+            echo "Downloading latest release rootfs from GitHub..."
+            curl -sSL "https://github.com/${{ github.repository }}/releases/download/latest/void-aarch64-rootfs.tar.xz" \
+              -o void-aarch64-rootfs.tar.xz
+          fi
+
+          ls -lh void-aarch64-rootfs.tar.xz
+          test -s void-aarch64-rootfs.tar.xz
+
+      - name: Extract RootFS
+        run: |
+          set -e
+          mkdir -p "$RUNNER_TEMP/test-rootfs"
+          tar -xf void-aarch64-rootfs.tar.xz -C "$RUNNER_TEMP/test-rootfs"
+
+      - name: Run Automated Test Suite
+        run: |
+          set -e
+          ROOTFS="$RUNNER_TEMP/test-rootfs"
+
+          # Copy test script inside container
+          cp tests/test-rootfs.sh "$ROOTFS/tmp/test.sh"
+          chmod +x "$ROOTFS/tmp/test.sh"
+
+          # Configure networking & mounts for container
+          printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee "$ROOTFS/etc/resolv.conf"
+
+          sudo mount -t proc proc "$ROOTFS/proc"
+          sudo mount -t sysfs sys "$ROOTFS/sys"
+          sudo mount --bind /dev "$ROOTFS/dev"
+
+          echo "::group::Running Test Suite in ARM64 Container..."
+          sudo chroot "$ROOTFS" /bin/bash /tmp/test.sh
+          echo "::endgroup::"
+
+      - name: Cleanup Mounts
+        if: always()
+        run: |
+          ROOTFS="$RUNNER_TEMP/test-rootfs"
+          sudo umount -l "$ROOTFS/dev" 2>/dev/null || true
+          sudo umount -l "$ROOTFS/sys" 2>/dev/null || true
+          sudo umount -l "$ROOTFS/proc" 2>/dev/null || true
+          sudo rm -rf "$ROOTFS" 2>/dev/null || true
