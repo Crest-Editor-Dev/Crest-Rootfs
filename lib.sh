@@ -255,9 +255,12 @@ register_binfmt() {
 
     # For builds that do not match the host architecture, the correct
     # qemu binary will be required.
-    QEMU_BIN="qemu-${_cpu}"
-    if ! $QEMU_BIN -version >/dev/null 2>&1; then
-        die "$QEMU_BIN binary is missing in your system, exiting."
+    if command -v "qemu-${_cpu}-static" >/dev/null 2>&1; then
+        QEMU_BIN="qemu-${_cpu}-static"
+    elif command -v "qemu-${_cpu}" >/dev/null 2>&1; then
+        QEMU_BIN="qemu-${_cpu}"
+    else
+        die "qemu-${_cpu} binary is missing in your system, exiting."
     fi
 
     # In order to use the binfmt system the binfmt_misc mountpoint
