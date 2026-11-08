@@ -9,7 +9,7 @@ on:
     inputs:
       packages:
         description: "Additional packages to include (space-separated)"
-        default: "base-container bash zsh ca-certificates"
+        default: "base-container bash ca-certificates"
         required: true
         type: string
 
@@ -39,7 +39,7 @@ jobs:
       - name: Build Lightweight ARM64 RootFS
         run: |
           set -e
-          PACKAGES="${{ github.event.inputs.packages || 'base-container bash zsh ca-certificates' }}"
+          PACKAGES="${{ github.event.inputs.packages || 'base-container bash ca-certificates' }}"
           echo "Building rootfs with packages: $PACKAGES"
 
           sudo ./mkrootfs.sh \
@@ -65,7 +65,8 @@ jobs:
           body: |
             Automated build of Void Linux ARM64 RootFS for Crest-Editor.
             - Built from official Void Linux repositories (`repo-default.voidlinux.org`)
-            - Packages: `base-container`, `bash`, `zsh`, `ca-certificates`
-            - Striped debug symbols & cleaned documentation / foreign locales
+            - Packages: `base-container`, `bash`, `ca-certificates`
+            - Preserved `gconv` character set conversion modules for full compatibility
+            - Striped binary & library debug symbols (`/usr/bin`, `/usr/lib`)
             - Ultra-compact `xz -9e` compression
           files: void-aarch64-rootfs.tar.xz

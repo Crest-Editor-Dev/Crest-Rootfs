@@ -240,9 +240,16 @@ rm -rf "$ROOTFS/var/cache/*" 2>/dev/null
 info_msg "Cleaning and trimming rootfs for lightweight PRoot container..."
 find "$ROOTFS/usr/lib" -name "*.so*" -type f -exec aarch64-linux-gnu-strip --strip-debug {} + 2>/dev/null || \
 find "$ROOTFS/usr/lib" -name "*.so*" -type f -exec strip --strip-debug {} + 2>/dev/null || true
+find "$ROOTFS/usr/bin" "$ROOTFS/usr/sbin" -type f -exec aarch64-linux-gnu-strip --strip-all {} + 2>/dev/null || \
+find "$ROOTFS/usr/bin" "$ROOTFS/usr/sbin" -type f -exec strip --strip-all {} + 2>/dev/null || true
 rm -rf "$ROOTFS/usr/share/man" "$ROOTFS/usr/share/info" "$ROOTFS/usr/share/doc" "$ROOTFS/usr/share/kbd"
 rm -rf "$ROOTFS/usr/lib/udev/hwdb.d" "$ROOTFS/usr/share/hwdata"
 find "$ROOTFS/usr/share/locale" -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
+# Clean uncompiled raw charmaps/locales (compiled locale-archive is preserved)
+rm -rf "$ROOTFS/usr/share/i18n"
+# Clean cached repo indexes and leap tables
+rm -rf "$ROOTFS/var/db/xbps/https_"* "$ROOTFS/var/db/xbps/http_"*
+rm -rf "$ROOTFS/usr/share/zoneinfo-leaps" "$ROOTFS/usr/share/zoneinfo/right"
 rm -rf "$ROOTFS/var/cache/*" "$ROOTFS/var/tmp/*" "$ROOTFS/tmp/*"
 mkdir -p "$ROOTFS/etc"
 printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > "$ROOTFS/etc/resolv.conf"

@@ -34,17 +34,20 @@ ARCH=$(uname -m)
 
 sh -c 'echo "sh OK"' >/dev/null 2>&1 && pass "POSIX sh executes" || fail "POSIX sh failed"
 bash -c 'echo "bash OK"' >/dev/null 2>&1 && pass "GNU Bash executes" || fail "GNU Bash failed"
-zsh -c 'echo "zsh OK"' >/dev/null 2>&1 && pass "Zsh executes" || fail "Zsh failed"
-
 ldd /usr/bin/bash >/dev/null 2>&1 && pass "ldd resolves bash shared libs" || fail "ldd failed on bash"
-ldd /usr/bin/zsh >/dev/null 2>&1 && pass "ldd resolves zsh shared libs" || fail "ldd failed on zsh"
+
+if command -v zsh >/dev/null 2>&1; then
+    zsh -c 'echo "zsh OK"' >/dev/null 2>&1 && pass "Zsh executes" || fail "Zsh failed"
+    ldd /usr/bin/zsh >/dev/null 2>&1 && pass "ldd resolves zsh shared libs" || fail "ldd failed on zsh"
+fi
 
 # ----------------------------------------------------
-step "2. Core Utilities & Pipeline Tools"
+step "2. Core Utilities, Gconv & Pipeline Tools"
 # ----------------------------------------------------
 echo "hello world" | grep -q "hello" && pass "grep pattern matching" || fail "grep failed"
 echo "foo bar" | awk '{print $2}' | grep -q "bar" && pass "awk field processing" || fail "awk failed"
 echo "hello" | sed 's/hello/world/' | grep -q "world" && pass "sed stream editor" || fail "sed failed"
+echo "Crest Gconv Test" | iconv -f UTF-8 -t ISO-8859-1 | iconv -f ISO-8859-1 -t UTF-8 >/dev/null 2>&1 && pass "gconv charset conversion modules active" || fail "gconv conversion failed"
 tar --version >/dev/null 2>&1 && pass "GNU tar executes" || fail "tar failed"
 gzip --version >/dev/null 2>&1 && pass "gzip executes" || fail "gzip failed"
 if command -v xz >/dev/null 2>&1; then
@@ -123,10 +126,12 @@ print('Python internal subsystem check passed.')
 " && pass "Python 3 core subsystems verified (SSL, SQLite, Threads, Network)" || fail "Python subsystem validation failed"
 
 # ----------------------------------------------------
-step "7. Heavy Developer Tool Test: Git & Version Control"
+step "7. Heavy Developer Tool Test: Git & On-Demand Zsh"
 # ----------------------------------------------------
-echo "Installing git (complex multi-binary suite)..."
-xbps-install -y git && pass "git package installed cleanly" || fail "git installation failed"
+echo "Installing git and on-demand zsh..."
+xbps-install -y git zsh && pass "git & zsh packages installed cleanly" || fail "git/zsh installation failed"
+
+zsh -c 'echo "zsh on-demand execution OK"' >/dev/null 2>&1 && pass "on-demand zsh execution validated" || fail "zsh execution failed"
 
 GIT_TEST_DIR=$(mktemp -d)
 cd "$GIT_TEST_DIR"
@@ -197,7 +202,7 @@ rm -rf "$C_TEST_DIR"
 step "9. Package Removal & State Cleanup Test"
 # ----------------------------------------------------
 echo "Testing reverse package removal & dependency cleaning..."
-xbps-remove -Ry gcc make git python3 && pass "heavy packages cleanly removed without orphan link errors" || fail "xbps package removal failed"
+xbps-remove -Ry gcc make git python3 zsh && pass "heavy packages cleanly removed without orphan link errors" || fail "xbps package removal failed"
 
 xbps-query -l >/dev/null 2>&1 && pass "database state intact after heavy install/remove cycle" || fail "database corrupted after uninstall"
 
