@@ -1,0 +1,70 @@
+name: Build Crest Void RootFS
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Additional packages to include (space-separated)"
+        default: "base-container bash zsh ca-certificates"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-aarch64:
+    name: Build Void RootFS (ARM64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for ARM64
+        uses: docker/setup-qemu-action@v3
+
+      - name: Install xbps-static tools & dependencies
+        run: |
+          set -e
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y xz-utils binfmt-support qemu-user-static binutils-aarch64-linux-gnu
+          curl -sL https://repo-default.voidlinux.org/static/xbps-static-latest.x86_64-musl.tar.xz | sudo tar -xJ -C /
+
+      - name: Build Lightweight ARM64 RootFS
+        run: |
+          set -e
+          PACKAGES="${{ github.event.inputs.packages || 'base-container bash zsh ca-certificates' }}"
+          echo "Building rootfs with packages: $PACKAGES"
+
+          sudo ./mkrootfs.sh \
+            -b "$PACKAGES" \
+            -o void-aarch64-rootfs.tar.xz \
+            aarch64
+
+          ls -lh void-aarch64-rootfs.tar.xz
+
+      - name: Upload RootFS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: void-aarch64-rootfs
+          path: void-aarch64-rootfs.tar.xz
+          retention-days: 90
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        with:
+          tag_name: latest
+          name: "Void Linux RootFS for Crest-Editor (ARM64)"
+          body: |
+            Automated build of Void Linux ARM64 RootFS for Crest-Editor.
+            - Built from official Void Linux repositories (`repo-default.voidlinux.org`)
+            - Packages: `base-container`, `bash`, `zsh`, `ca-certificates`
+            - Striped debug symbols & cleaned documentation / foreign locales
+            - Ultra-compact `xz -9e` compression
+          files: void-aarch64-rootfs.tar.xz

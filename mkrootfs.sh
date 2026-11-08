@@ -129,7 +129,7 @@ fi
 # set the compression command
 case "$COMPRESSOR" in
     xz)
-        COMPRESSOR="xz -T${COMPRESSOR_THREADS:-0} -9"
+        COMPRESSOR="xz -T${COMPRESSOR_THREADS:-0} -9e"
         FILENAME_SUFFIX="tar.xz"
         ;;
     none)
@@ -235,6 +235,17 @@ cleanup_chroot
 # used it is likely to be out of date.  Rather than shipping it around
 # only for it to be out of date, we remove it now.
 rm -rf "$ROOTFS/var/cache/*" 2>/dev/null
+
+# Trim rootfs for Crest-Editor PRoot environment
+info_msg "Cleaning and trimming rootfs for lightweight PRoot container..."
+find "$ROOTFS/usr/lib" -name "*.so*" -type f -exec aarch64-linux-gnu-strip --strip-debug {} + 2>/dev/null || \
+find "$ROOTFS/usr/lib" -name "*.so*" -type f -exec strip --strip-debug {} + 2>/dev/null || true
+rm -rf "$ROOTFS/usr/share/man" "$ROOTFS/usr/share/info" "$ROOTFS/usr/share/doc" "$ROOTFS/usr/share/kbd"
+rm -rf "$ROOTFS/usr/lib/udev/hwdb.d" "$ROOTFS/usr/share/hwdata"
+find "$ROOTFS/usr/share/locale" -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
+rm -rf "$ROOTFS/var/cache/*" "$ROOTFS/var/tmp/*" "$ROOTFS/tmp/*"
+mkdir -p "$ROOTFS/etc"
+printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > "$ROOTFS/etc/resolv.conf"
 
 # Finally we can compress the tarball, the name will include the
 # architecture and the date on which the tarball was built.
