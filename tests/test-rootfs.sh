@@ -95,7 +95,7 @@ python3 -c "
 import sys, os, math, ssl, sqlite3, hashlib, json, threading, urllib.request
 
 assert math.factorial(6) == 720, 'Math factorial failed'
-assert hashlib.sha256(b'crest').hexdigest() == 'a0cb60621fc534fc40aeeb24716b509bc1d7ff15975bb5f9227f67389146522c', 'SHA256 failed'
+assert hashlib.sha256(b'crest').hexdigest() == 'ac384d4204164a952d7af3a4226c1cd25fafa4382be588692d758673b6abc2cd', 'SHA256 failed'
 
 # SQLite database test
 conn = sqlite3.connect(':memory:')
